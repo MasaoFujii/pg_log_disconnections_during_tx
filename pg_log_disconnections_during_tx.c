@@ -41,7 +41,7 @@ _PG_init(void)
 							 NULL,
 							 &log_disconnections_during_tx_enabled,
 							 false,
-							 PGC_SIGHUP,
+							 PGC_SUSET,
 							 0,
 							 NULL,
 							 NULL,
