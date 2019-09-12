@@ -1,0 +1,60 @@
+language: c
+
+compiler: gcc
+
+env:
+   matrix:
+      - PGBRANCH=master
+      - PGBRANCH=REL_12_STABLE
+
+before_install:
+   - sudo service postgresql stop
+   - PGEXTENSION=pg_log_disconnections_during_tx
+   - CURDIR=$(pwd)
+   - PGHOME=${CURDIR}/${PGBRANCH}
+   - PGDATA=${PGHOME}/data
+   - PGLOGDIR=${PGDATA}/log
+   - PGLOGFILE=${PGEXTENSION}.log
+   - PGLOG=${PGLOGDIR}/${PGLOGFILE}
+   - PGSQL=${CURDIR}/sql/${PGEXTENSION}.sql
+   - git clone https://github.com/postgres/postgres.git
+   - cd postgres
+   - git checkout ${PGBRANCH}
+   - ./configure --prefix=${PGHOME} --enable-debug --enable-cassert
+   - make -j 2
+   - make install
+   - export PATH=${PGHOME}/bin:${PATH}
+   - export PGDATABASE=postgres
+   - initdb -D ${PGDATA} --locale=C --encoding=UTF8
+   - pg_ctl -D ${PGDATA} -w start
+
+before_script:
+   - cd ${CURDIR}
+   - make USE_PGXS=1 PG_CONFIG=${PGHOME}/bin/pg_config
+   - make USE_PGXS=1 PG_CONFIG=${PGHOME}/bin/pg_config install
+   - psql -c "ALTER SYSTEM SET shared_preload_libraries TO '${PGEXTENSION}'"
+   - psql -c "ALTER SYSTEM SET logging_collector TO on"
+   - psql -c "ALTER SYSTEM SET log_directory TO '${PGLOGDIR}'"
+   - psql -c "ALTER SYSTEM SET log_filename TO '${PGLOGFILE}'"
+   - psql -c "ALTER SYSTEM SET logging_collector = on"
+   - pg_ctl -D ${PGDATA} restart
+
+script:
+   - test $(grep "disconnections with" ${PGLOG} | wc -l) -eq 0
+   - psql -f ${PGSQL}
+   - sleep 1
+   - test $(grep "disconnection with" ${PGLOG} | wc -l) -eq 0
+   - psql -c "ALTER SYSTEM SET ${PGEXTENSION}.enabled TO on"
+   - pg_ctl -D ${PGDATA} reload
+   - psql -f ${PGSQL}
+   - sleep 1
+   - test $(grep "disconnection with" ${PGLOG} | wc -l) -eq 5
+
+after_script:
+   - if [ -f ${PGLOG} ]; then cat ${PGLOG}; fi
+   - pg_ctl -D ${PGDATA} stop
+
+notifications:
+   email:
+      on_success: change
+      on_failure: always
