@@ -12,6 +12,7 @@
 #include "libpq/libpq-be.h"
 #include "miscadmin.h"
 #include "storage/ipc.h"
+#include "tcop/utility.h"
 #include "utils/guc.h"
 
 PG_MODULE_MAGIC;
@@ -19,13 +20,24 @@ PG_MODULE_MAGIC;
 /* GUC Variables */
 static bool	log_disconnections_during_tx_enabled = false;
 
+/*
+ * Has log_disconnections_during_tx() already been registered as
+ * callback?
+ */
+static bool	callback_registered = false;
+
 /* Saved hook values in case of unload */
 static ExecutorStart_hook_type prev_ExecutorStart = NULL;
+static ProcessUtility_hook_type prev_ProcessUtility = NULL;
 
 void		_PG_init(void);
 void		_PG_fini(void);
 
-static void	this_ExecutorStart(QueryDesc *queryDesc, int eflags);
+static void	lddt_ExecutorStart(QueryDesc *queryDesc, int eflags);
+static void lddt_ProcessUtility(PlannedStmt *pstmt, const char *queryString,
+								ProcessUtilityContext context, ParamListInfo params,
+								QueryEnvironment *queryEnv,
+								DestReceiver *dest, char *completionTag);
 static void	log_disconnections_during_tx(int code, Datum arg);
 
 
@@ -51,7 +63,9 @@ _PG_init(void)
 
 	/* Install hooks. */
 	prev_ExecutorStart = ExecutorStart_hook;
-	ExecutorStart_hook = this_ExecutorStart;
+	ExecutorStart_hook = lddt_ExecutorStart;
+	prev_ProcessUtility = ProcessUtility_hook;
+	ProcessUtility_hook = lddt_ProcessUtility;
 }
 
 /*
@@ -68,14 +82,43 @@ _PG_fini(void)
  * ExecutorStart hook
  */
 static void
-this_ExecutorStart(QueryDesc *queryDesc, int eflags)
+lddt_ExecutorStart(QueryDesc *queryDesc, int eflags)
 {
+	if (!callback_registered)
+	{
+		before_shmem_exit(log_disconnections_during_tx, 0);
+		callback_registered = true;
+	}
+
 	if (prev_ExecutorStart)
 		prev_ExecutorStart(queryDesc, eflags);
 	else
 		standard_ExecutorStart(queryDesc, eflags);
+}
 
-	before_shmem_exit(log_disconnections_during_tx, 0);
+/*
+ * ProcessUtility hook
+ */
+static void
+lddt_ProcessUtility(PlannedStmt *pstmt, const char *queryString,
+					ProcessUtilityContext context, ParamListInfo params,
+					QueryEnvironment *queryEnv,
+					DestReceiver *dest, char *completionTag)
+{
+	if (!callback_registered)
+	{
+		before_shmem_exit(log_disconnections_during_tx, 0);
+		callback_registered = true;
+	}
+
+	if (prev_ProcessUtility)
+		prev_ProcessUtility(pstmt, queryString,
+							context, params, queryEnv,
+							dest, completionTag);
+	else
+		standard_ProcessUtility(pstmt, queryString,
+								context, params, queryEnv,
+								dest, completionTag);
 }
 
 /*
