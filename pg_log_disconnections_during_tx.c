@@ -1,7 +1,7 @@
 /*-------------------------------------------------------------------------
  *
  * pg_log_disconnections_during_tx.c
- *	  Enables PostgreSQL to log normal disconnections during transaction
+ *	  PostgreSQL extension to log disconnections during transaction.
  *
  *-------------------------------------------------------------------------
  */
@@ -37,7 +37,7 @@ _PG_init(void)
 {
 	/* Define custom GUC variables. */
 	DefineCustomBoolVariable("pg_log_disconnections_during_tx.enabled",
-							 "Log normal disconnections during transaction.",
+							 "Log disconnections during transaction.",
 							 NULL,
 							 &log_disconnections_during_tx_enabled,
 							 false,
