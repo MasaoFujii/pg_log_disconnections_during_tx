@@ -3,6 +3,9 @@ PostgreSQL extension to log disconnection during transaction.
 
 pg_log_disconnections_during_tx is released under the [PostgreSQL License](https://opensource.org/licenses/postgresql), a liberal Open Source license, similar to the BSD or MIT licenses.
 
+## Test Status
+[![Build Status](https://travis-ci.org/MasaoFujii/pg_log_disconnections_during_tx.svg?branch=master)](https://travis-ci.org/MasaoFujii/pg_log_disconnections_during_tx)
+
 ## Install
 
 Download the source archive of pg_log_disconnections_during_tx from
