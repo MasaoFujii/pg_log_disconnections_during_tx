@@ -1,7 +1,9 @@
 /*-------------------------------------------------------------------------
  *
  * pg_log_disconnections_during_tx.c
- *	  PostgreSQL extension to log disconnections during transaction.
+ *	    PostgreSQL extension to log disconnections during transaction.
+ *
+ *  Copyright (c) 2019, Fujii Masao
  *
  *-------------------------------------------------------------------------
  */

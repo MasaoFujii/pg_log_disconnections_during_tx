@@ -40,3 +40,6 @@ Causes session terminations to be logged **onlly if transaction is in progress**
 The log output provides same information as
 [log_disconnections](https://www.postgresql.org/docs/devel/runtime-config-logging.html#GUC-LOG-DISCONNECTIONS).
 Only superusers can change this parameter. The default is off.
+
+## Copyright
+Copyright (c) 2019, Fujii Masao
